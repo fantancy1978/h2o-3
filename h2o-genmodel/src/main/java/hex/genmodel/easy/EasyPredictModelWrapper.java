@@ -18,10 +18,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -582,7 +579,7 @@ public class EasyPredictModelWrapper implements java.io.Serializable {
     // TODO: refactor
     boolean isImage = m instanceof DeepwaterMojoModel && ((DeepwaterMojoModel) m)._problem_type.equals("image");
     boolean isText  = m instanceof DeepwaterMojoModel && ((DeepwaterMojoModel) m)._problem_type.equals("text");
-
+    final List<String> columnsWithNans = new ArrayList<>();
     for (String dataColumnName : data.keySet()) {
       Integer index = modelColumnNameToIndexMap.get(dataColumnName);
 
@@ -654,6 +651,10 @@ public class EasyPredictModelWrapper implements java.io.Serializable {
             rawData[i] = _destData[i];
           return rawData;
         }
+
+        if (Double.isNaN(value)) {
+          columnsWithNans.add(dataColumnName);
+        }
         rawData[index] = value;
       }
       else {
@@ -669,6 +670,7 @@ public class EasyPredictModelWrapper implements java.io.Serializable {
           }
           if (levelIndex == null) {
             if (convertUnknownCategoricalLevelsToNa) {
+              columnsWithNans.add(dataColumnName);
               value = Double.NaN;
               unknownCategoricalLevelsSeenPerColumn.get(dataColumnName).incrementAndGet();
             }
@@ -680,7 +682,8 @@ public class EasyPredictModelWrapper implements java.io.Serializable {
             value = levelIndex;
           }
         } else if (o instanceof Double && Double.isNaN((double)o)) {
-          value = (double)o; //Missing factor is the only Double value allowed
+          columnsWithNans.add(dataColumnName);
+          value = (double) o; //Doube NaN value is treated as missing factor and thus allowed
         } else {
           throw new PredictUnknownTypeException(
                   "Unexpected object type " + o.getClass().getName() + " for categorical column " + dataColumnName);
@@ -688,6 +691,7 @@ public class EasyPredictModelWrapper implements java.io.Serializable {
         rawData[index] = value;
       }
     }
+    printNaNColumns(columnsWithNans);
     return rawData;
   }
 
@@ -698,4 +702,23 @@ public class EasyPredictModelWrapper implements java.io.Serializable {
     return preds;
   }
 
+  /**
+   * Prints found columns with NaN values pased to standard output, if there are any.
+   */
+  private void printNaNColumns(Collection<String> namedColumnsWithNansParsed) {
+    if (!namedColumnsWithNansParsed.isEmpty()) {
+      return;
+    }
+
+    StringBuilder columnMessageBuilder = new StringBuilder("Following columns had NaN values in the predicted dataset: ");
+
+    Iterator<String> columnIterator = namedColumnsWithNansParsed.iterator();
+
+    while (columnIterator.hasNext()) {
+      columnMessageBuilder.append(columnIterator.next());
+      if (columnIterator.hasNext()) {
+        columnMessageBuilder.append(",");
+      }
+    }
+  }
 }
