@@ -13,6 +13,7 @@ import java.util.*;
 
 // An uncompressed chunk of data, supporting an append operation
 public class NewChunk extends Chunk {
+  private static final int MAX_ARRAY_SIZE = Integer.MAX_VALUE - 8;
 
   public void alloc_mantissa(int sparseLen) {_ms = new Mantissas(sparseLen);}
 
@@ -567,14 +568,36 @@ public class NewChunk extends Chunk {
     byte b[] = str.getBuffer();
 
     if (_ss == null) {
-      _ss = MemoryManager.malloc1((strlen + 1) * 4);
+      int allocSize = (strlen + 1) * 4;
+      if (allocSize < 0 || allocSize > MAX_ARRAY_SIZE) {
+        allocSize = MAX_ARRAY_SIZE;
+        strlen = Math.min(strlen, MAX_ARRAY_SIZE - 1);
+      }
+      _ss = MemoryManager.malloc1(Math.min(Math.abs(allocSize), MAX_ARRAY_SIZE));
     }
-    while (_ss.length < (_sslen + strlen + 1)) {
-      _ss = MemoryManager.arrayCopyOf(_ss,_ss.length << 1);
+    int sizeBoundary = _sslen + strlen + 1;
+    while (_ss.length < sizeBoundary) {
+      // An attempt to double the capacity
+      int newSize = _ss.length << 1;
+      // Negative value means an Integer overflow
+      if (newSize < 0 || newSize >= MAX_ARRAY_SIZE) {
+        newSize = MAX_ARRAY_SIZE;
+        int oldSize = _ss.length;
+        _ss = MemoryManager.arrayCopyOf(_ss, newSize);
+        int byteDifference = newSize - oldSize;
+        if (strlen > byteDifference) strlen = byteDifference;
+        break;
+      } else {
+        _ss = MemoryManager.arrayCopyOf(_ss, newSize);
+      }
     }
-    for (int i = off; i < off+strlen; i++)
+
+    for (int i = off; i < off + strlen; i++) {
       _ss[_sslen++] = b[i];
-    _ss[_sslen++] = (byte)0; // for trailing 0;
+    }
+    if(strlen != 0) {
+      _ss[_sslen++] = (byte) 0; // for trailing 0;
+    }
   }
 
   // Append a string, store in _ss & _is

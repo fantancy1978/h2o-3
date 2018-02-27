@@ -1,5 +1,6 @@
 package water.fvec;
 
+import com.google.common.base.Strings;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
@@ -557,6 +558,85 @@ public class NewChunkTest extends TestUtil {
     } finally { remove(); }
   }
 
+  @Test
+  public void testSmallString_noResize() {
+    try {
+      av = new AppendableVec(Vec.newKey(), Vec.T_STR);
+      nc = new NewChunk(av, 0);
+      BufferedString testString = new BufferedString(Strings.repeat("a", 10));
+      nc.addStr(testString);
+      post();
+      Assert.assertEquals(11, nc._sslen);
+      Assert.assertEquals(CStrChunk.class, cc.getClass());
+      Assert.assertEquals(10, cc.stringAt(0).length());
+      Assert.assertEquals(1, cc.len());
+    } finally {
+      remove();
+    }
+  }
+
+  @Test
+  public void testSmallString_resize() {
+    try {
+      av = new AppendableVec(Vec.newKey(), Vec.T_STR);
+      nc = new NewChunk(av, 0);
+      BufferedString testString = new BufferedString(Strings.repeat("a", 10));
+      // Backing array is initialized with 4 times the size of original string
+      // Inserting five times forces NewChunk to enlarge the backing array
+      nc.addStr(testString);
+      nc.addStr(testString);
+      nc.addStr(testString);
+      nc.addStr(testString);
+      nc.addStr(testString);
+      post();
+      Assert.assertEquals(55, nc._sslen);
+      Assert.assertEquals(CStrChunk.class, cc.getClass());
+      Assert.assertEquals(10, cc.stringAt(0).length());
+      Assert.assertEquals(5, cc.len());
+    } finally {
+      remove();
+    }
+  }
+
+  @Test
+  public void testStringOverflow() {
+    try {
+      av = new AppendableVec(Vec.newKey(), Vec.T_STR);
+      nc = new NewChunk(av, 0);
+      BufferedString testString = new BufferedString(Strings.repeat("a", (Integer.MAX_VALUE - 8) / 4));
+      nc.addStr(testString);
+      nc.addStr(testString);
+      nc.addStr(testString);
+      nc.addStr(testString);
+      nc.addStr(testString);
+      post();
+      Assert.assertEquals(CStrChunk.class, cc.getClass());
+      Assert.assertEquals((Integer.MAX_VALUE - 8) / 4, cc.stringAt(0).length());
+      Assert.assertEquals(5, cc.len());
+    } finally {
+      remove();
+    }
+  }
+
+  @Test
+  public void testHugeChunkExpand() {
+    try {
+      av = new AppendableVec(Vec.newKey(), Vec.T_STR);
+      nc = new NewChunk(av, 0);
+      BufferedString testString = new BufferedString(com.google.common.base.Strings.repeat("a", (Integer.MAX_VALUE - 8) / 4));
+      nc.addStr(testString);
+      nc.addStr(testString);
+      nc.addStr(testString);
+      nc.addStr(testString);
+      nc.addStr(testString);
+      post();
+      Assert.assertEquals(CStrChunk.class, cc.getClass());
+      Assert.assertEquals(10, cc.stringAt(0).length());
+      Assert.assertEquals(5, cc.len());
+    } finally {
+      remove();
+    }
+  }
 
 
   private static double []  test_seq = new double[]{
