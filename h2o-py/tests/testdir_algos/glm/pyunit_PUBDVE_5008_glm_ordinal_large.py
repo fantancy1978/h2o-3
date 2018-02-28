@@ -17,6 +17,8 @@ def testOrdinalLogit():
                                           max_iterations=1000, beta_epsilon=1e-8, objective_epsilon=1e-10)
     model.train(x=list(range(0,10)), y="C11", training_frame=Dtrain)
     predH2O = model.predict(Dtest)
+    if len(predH2O[0].levels()[0])<=len(Dtest["C11"].levels()[0]):
+        print("Simulation result with bad seed.")
     assert len(predH2O[0].levels()[0])==len(Dtest["C11"].levels()[0]), "Your ordinal regression model fail to " \
                                                                        "capture all classes in the test dataset."
 

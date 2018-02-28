@@ -197,12 +197,12 @@ def pojo_predict(model, tmpdir, pojoname):
 
     in_csv = (os.path.join(tmpdir, 'in.csv'))   # import the test dataset
     print("Compiling Java Pojo")
-    javac_cmd = ["javac", "-cp", h2o_genmodel_jar, "-J-Xmx12g", "-J-XX:MaxPermSize=256m", java_file]
+    javac_cmd = ["javac", "-cp", h2o_genmodel_jar, "-J-Xmx12g", java_file]
     subprocess.check_call(javac_cmd)
 
     out_pojo_csv = os.path.join(tmpdir, "out_pojo.csv")
     cp_sep = ";" if sys.platform == "win32" else ":"
-    java_cmd = ["java", "-ea", "-cp", h2o_genmodel_jar + cp_sep + tmpdir, "-Xmx12g", "-XX:MaxPermSize=2g",
+    java_cmd = ["java", "-ea", "-cp", h2o_genmodel_jar + cp_sep + tmpdir, "-Xmx12g",
             "-XX:ReservedCodeCacheSize=256m", "hex.genmodel.tools.PredictCsv",
             "--pojo", pojoname, "--input", in_csv, "--output", out_pojo_csv, "--decimal"]
 
